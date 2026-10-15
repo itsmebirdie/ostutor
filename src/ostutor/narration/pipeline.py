@@ -13,7 +13,6 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
-from typing import Optional
 
 from ostutor.cache.store import Cache
 from ostutor.common.types import Verdict
@@ -42,8 +41,8 @@ in the summary, and the critical decision point if one is given.
 _SHAPE = '{"claims": [{"step": <int>, "text": "<one sentence>"}], "summary": "<2-4 sentences>"}'
 
 
-def build_user_prompt(evidence: str, violations: Optional[list[dict]] = None,
-                      previous: Optional[str] = None) -> str:
+def build_user_prompt(evidence: str, violations: list[dict] | None = None,
+                      previous: str | None = None) -> str:
     msg = f"EVIDENCE\n{evidence}\n\nReturn JSON of exactly this shape: {_SHAPE}"
     if violations:
         rules = "\n".join(f"- {v['rule']}: {v['detail']}" for v in violations)
@@ -52,7 +51,7 @@ def build_user_prompt(evidence: str, violations: Optional[list[dict]] = None,
     return msg
 
 
-def parse_narration(raw: str) -> tuple[Optional[dict], list[dict]]:
+def parse_narration(raw: str) -> tuple[dict | None, list[dict]]:
     """Extract and structurally validate the JSON narration."""
     text = raw.strip()
     text = re.sub(r"^```(?:json)?|```$", "", text, flags=re.M).strip()
@@ -88,8 +87,8 @@ class Explanation:
                 "template": "template", "template_fallback": "template fall-back"}[self.source]
 
 
-def explain(program: dict, verdict: Verdict, llm: Optional[LLMClient] = None,
-            cache: Optional[Cache] = None, question: str = "why") -> Explanation:
+def explain(program: dict, verdict: Verdict, llm: LLMClient | None = None,
+            cache: Cache | None = None, question: str = "why") -> Explanation:
     template = template_narrate(program, verdict)
     if llm is None:
         return Explanation(template, "template", True)
@@ -105,7 +104,7 @@ def explain(program: dict, verdict: Verdict, llm: Optional[LLMClient] = None,
     violations: list[dict] = []
     previous = None
     attempts = 0
-    for attempt in range(MAX_REPROMPTS + 1):
+    for _ in range(MAX_REPROMPTS + 1):
         user = build_user_prompt(evidence, violations or None, previous)
         try:
             raw = llm.complete(SYSTEM_PROMPT, user)
@@ -126,7 +125,7 @@ def explain(program: dict, verdict: Verdict, llm: Optional[LLMClient] = None,
                        "LLM output failed the fact checker; showing the template")
 
 
-def analyze_cached(program: dict, cache: Optional[Cache], loop_unroll: int = 0,
+def analyze_cached(program: dict, cache: Cache | None, loop_unroll: int = 0,
                    budget: int = 300_000) -> Verdict:
     from ostutor.common.types import program_hash
     from ostutor.slice.explorer import analyze

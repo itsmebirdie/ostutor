@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from collections import defaultdict, deque
 from dataclasses import dataclass
-from typing import Optional
 
 from ostutor.common.types import Step, Trace, Verdict, program_hash
 
@@ -59,7 +58,7 @@ class Model:
     def initial(self) -> State:
         return (tuple(0 for _ in self.threads), tuple(None for _ in self.mutexes))
 
-    def next_op(self, state: State, t: int) -> Optional[tuple]:
+    def next_op(self, state: State, t: int) -> tuple | None:
         pc = state[0][t]
         return self.ops[t][pc] if pc < len(self.ops[t]) else None
 
@@ -236,7 +235,7 @@ def _trace(ex: Exploration, chain: list) -> Trace:
     return Trace("concurrency", steps, m.vocab(), {"search": "tierA_bfs"})
 
 
-def _critical_point(ex: Exploration, chain: list, labels_safe: set) -> Optional[dict]:
+def _critical_point(ex: Exploration, chain: list, labels_safe: set) -> dict | None:
     """Last state on the witness with a safe completion, and the choice that left it."""
     states = [ex.initial] + [c[2] for c in chain]
     idx = None

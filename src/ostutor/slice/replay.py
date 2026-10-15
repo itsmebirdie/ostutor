@@ -6,7 +6,6 @@ machine with the search, not the search, the labelling or the witness code.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from ostutor.common.types import Trace
 from ostutor.slice.explorer import Model
@@ -15,11 +14,11 @@ from ostutor.slice.explorer import Model
 @dataclass
 class ReplayResult:
     ok: bool  # schedule was legal AND ended in a failure
-    failure: Optional[str]  # "deadlock" | "race" | None
+    failure: str | None  # "deadlock" | "race" | None
     reason: str
 
 
-def replay(program: dict, witness: Trace, expected: Optional[str] = None) -> ReplayResult:
+def replay(program: dict, witness: Trace, expected: str | None = None) -> ReplayResult:
     m = Model(program)
     state = m.initial()
     for n, st in enumerate(witness.steps, start=1):

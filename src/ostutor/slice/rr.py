@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Optional
 
 CORRECT_POLICY = "new_first"
 MUTANTS = {
@@ -68,7 +67,7 @@ def simulate(procs: list[tuple], quantum: int, policy: str = CORRECT_POLICY) -> 
     return gantt
 
 
-def first_divergence(correct: list[str], got: list[str]) -> Optional[dict]:
+def first_divergence(correct: list[str], got: list[str]) -> dict | None:
     for k in range(max(len(correct), len(got))):
         e = correct[k] if k < len(correct) else "(end)"
         g = got[k] if k < len(got) else "(end)"
@@ -90,9 +89,9 @@ def edit_distance(a: list[str], b: list[str]) -> int:
 @dataclass
 class Diagnosis:
     method: str  # "correct" | "mutant_match" | "edit_distance"
-    misconception_id: Optional[str]
-    first_divergence: Optional[dict]
-    systematic: Optional[bool]
+    misconception_id: str | None
+    first_divergence: dict | None
+    systematic: bool | None
     confidence_note: str
     matches: list[str] = field(default_factory=list)  # ALL mutants that match
 

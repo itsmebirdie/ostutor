@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict, dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 LABELS = ("safe", "race", "deadlock", "starvation", "lost_signal")
 
@@ -42,9 +42,9 @@ class Verdict:
     completeness: str  # "complete_for_bound" | "reduced_but_complete" | "sampled"
     bounds: dict[str, int]
     states_explored: int
-    fairness_assumption: Optional[str]
-    witness: Optional[Trace]
-    critical_point: Optional[dict[str, Any]]
+    fairness_assumption: str | None
+    witness: Trace | None
+    critical_point: dict[str, Any] | None
     program_hash: str
     detail: dict[str, Any] = field(default_factory=dict)
 

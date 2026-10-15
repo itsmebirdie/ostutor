@@ -4,10 +4,8 @@ import pytest
 
 from ostutor.cache.store import Cache
 from ostutor.narration.evidence import encode_evidence, estimate_tokens
-from ostutor.narration.llm import (FixtureStore, LLMClient, LLMConfig, LLMUnavailable,
-                                   MissingFixture)
-from ostutor.narration.pipeline import (analyze_cached, explain, parse_narration,
-                                        MAX_REPROMPTS)
+from ostutor.narration.llm import FixtureStore, LLMClient, LLMConfig, LLMUnavailable, MissingFixture
+from ostutor.narration.pipeline import MAX_REPROMPTS, analyze_cached, explain, parse_narration
 from ostutor.slice.check import check
 from ostutor.slice.explorer import analyze
 from ostutor.slice.narrate import narrate
@@ -169,3 +167,4 @@ def test_sqlite_cache_persists_on_disk(tmp_path):
     c = Cache(path); analyze_cached(DEADLOCK, c); c.close()
     c2 = Cache(path); analyze_cached(DEADLOCK, c2)
     assert c2.hits["verdict"] == 1
+    c2.close()

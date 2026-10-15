@@ -97,3 +97,22 @@ Setup for LLM access: see `docs/LLM_SETUP.md`.
 
 Still not built: semaphores/condition variables, Tier B/C, starvation, lost signal,
 simulators beyond the Round Robin slice, RAG, router, API, UI.
+
+## Tests, CI and releases
+
+```bash
+make install   # editable install with dev tools
+make check     # exactly what CI runs: ruff, mypy, pytest with a 90% coverage floor
+make demo      # slice demo with the tamper test
+```
+
+| Workflow | When | What it does |
+|---|---|---|
+| `ci.yml` | every push to `main`, every pull request | lint + types; tests on Python 3.11/3.12/3.13 (Linux) and 3.12 (Windows, macOS); acceptance gate on the *installed* package; builds the wheel and checks it |
+| `release.yml` | pushing a tag such as `v0.2.0` | re-runs tests, checks the tag matches `pyproject.toml`, builds, publishes a GitHub Release with the files (PyPI publishing is optional and off by default) |
+| `llm-live-check.yml` | manual only | pings the real provider with the `GROQ_API_KEY` repo secret |
+
+The test suite is fully offline: `tests/conftest.py` removes API keys from the environment and
+fails any test that opens a network connection, so CI never spends tokens.
+
+Release: bump `version` in `pyproject.toml`, commit, then `git tag v0.2.0 && git push origin v0.2.0`.

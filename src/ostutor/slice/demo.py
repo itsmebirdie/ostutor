@@ -88,6 +88,7 @@ def run_rr() -> None:
     print("correct :", " ".join(correct))
     print("student :", " ".join(student))
     d = rr.diagnose(student, procs, 2)
+    assert d.first_divergence is not None, "the mutant answer must diverge"
     print(f"method {d.method}; misconception {d.misconception_id}")
     print(f"first divergence at time unit {d.first_divergence['step']}: "
           f"expected {d.first_divergence['expected']}, got {d.first_divergence['got']}")

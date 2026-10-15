@@ -12,7 +12,6 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
-from typing import Optional
 
 from ostutor.common.types import Verdict, verdict_from_dict
 
@@ -38,7 +37,7 @@ class Cache:
     def verdict_key(program_hash: str, bounds: dict) -> str:
         return _h(program_hash, bounds)
 
-    def get_verdict(self, key: str) -> Optional[Verdict]:
+    def get_verdict(self, key: str) -> Verdict | None:
         return verdict_from_dict(json.loads(self._get("verdicts", key, "verdict")))\
             if self._peek("verdicts", key) else self._miss("verdict")
 
@@ -50,7 +49,7 @@ class Cache:
     def narration_key(evidence: str, question: str, prompt_version: str, model: str) -> str:
         return _h(evidence, question, prompt_version, model)
 
-    def get_narration(self, key: str) -> Optional[dict]:
+    def get_narration(self, key: str) -> dict | None:
         return json.loads(self._get("narrations", key, "narration"))\
             if self._peek("narrations", key) else self._miss("narration")
 

@@ -3,7 +3,9 @@
 The future DSL parser must produce exactly this shape.
 """
 
-PROGRAMS = {
+from typing import Any
+
+PROGRAMS: dict[str, dict[str, Any]] = {
     "deadlock_two_locks": {
         "mutexes": ["a", "b"],
         "shared": [],

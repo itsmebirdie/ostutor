@@ -7,11 +7,10 @@ Hand counts of reachable states (pc of T1, pc of T2):
 """
 import math
 
-from ostutor.slice.explorer import (ProgramError, StateBudgetExceeded, analyze,
-                                    analyze_full, Model)
-from ostutor.slice.programs import PROGRAMS
-
 import pytest
+
+from ostutor.slice.explorer import Model, ProgramError, StateBudgetExceeded, analyze, analyze_full
+from ostutor.slice.programs import PROGRAMS
 
 
 def test_deadlock_verdict():

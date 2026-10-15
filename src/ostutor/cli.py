@@ -21,6 +21,15 @@ from ostutor.slice.replay import replay
 
 
 def cmd_analyze(a) -> int:
+    cache = Cache(a.db) if a.db else None
+    try:
+        return _analyze(a, cache)
+    finally:
+        if cache:
+            cache.close()  # release the SQLite file (matters on Windows)
+
+
+def _analyze(a, cache) -> int:
     try:
         parsed = parse(Path(a.file).read_text(), a.unroll)
     except OSError as e:
@@ -30,7 +39,6 @@ def cmd_analyze(a) -> int:
         print(f"Parse error, {e}", file=sys.stderr)
         return 2
     program = parsed.program
-    cache = Cache(a.db) if a.db else None
     try:
         v = analyze_cached(program, cache, parsed.loop_unroll, a.budget)
     except ProgramError as e:

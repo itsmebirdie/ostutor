@@ -19,9 +19,9 @@ import os
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Optional
 
 DEFAULT_BASE_URL = "https://api.groq.com/openai/v1"
 DEFAULT_MODEL = "llama-3.3-70b-versatile"
@@ -60,7 +60,7 @@ class LLMConfig:
     max_retries: int = 3
 
     @classmethod
-    def from_env(cls) -> "LLMConfig":
+    def from_env(cls) -> LLMConfig:
         load_dotenv()
         return cls(
             api_key=os.environ.get("OSTUTOR_API_KEY") or os.environ.get("GROQ_API_KEY", ""),
@@ -80,7 +80,7 @@ class FixtureStore:
     def key(model: str, system: str, user: str) -> str:
         return hashlib.sha256(json.dumps([model, system, user]).encode()).hexdigest()[:24]
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         f = self.directory / f"{key}.json"
         return json.loads(f.read_text())["response"] if f.is_file() else None
 
@@ -112,7 +112,7 @@ def _urllib_transport(url: str, headers: dict, body: dict, timeout: float):
 @dataclass
 class LLMClient:
     config: LLMConfig = field(default_factory=LLMConfig.from_env)
-    fixtures: Optional[FixtureStore] = None
+    fixtures: FixtureStore | None = None
     transport: Transport = _urllib_transport
     sleep: Callable[[float], None] = time.sleep
     calls: int = 0  # live network calls made (for budgeting/tests)
@@ -174,7 +174,7 @@ class LLMClient:
         raise LLMUnavailable(f"request failed: {last}")
 
 
-def _retry_after(headers: dict) -> Optional[float]:
+def _retry_after(headers: dict) -> float | None:
     for k, v in headers.items():
         if k.lower() == "retry-after":
             try:
