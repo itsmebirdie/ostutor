@@ -76,3 +76,18 @@ def test_ping_without_key_fails_cleanly(capsys, tmp_path, monkeypatch):
     assert main(["ping"]) == 1
     out = capsys.readouterr().out
     assert "NOT SET" in out and "FAILED" in out
+
+
+def test_models_without_key_fails_cleanly(capsys, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert main(["models"]) == 1
+    assert "no API key" in capsys.readouterr().out
+
+
+def test_models_lists_ids_and_warns_when_current_model_is_missing(capsys, monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "k")
+    monkeypatch.setenv("OSTUTOR_MODEL", "retired-model")
+    monkeypatch.setattr("ostutor.cli.list_models", lambda cfg: ["openai/gpt-oss-120b", "x/y"])
+    assert main(["models"]) == 0
+    out = capsys.readouterr().out
+    assert "openai/gpt-oss-120b" in out and "WARNING: 'retired-model'" in out

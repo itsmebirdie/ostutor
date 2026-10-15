@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+import threading
 
 from ostutor.common.types import Verdict, verdict_from_dict
 
@@ -27,7 +28,9 @@ def _h(*parts) -> str:
 
 class Cache:
     def __init__(self, path: str = ":memory:"):
-        self.db = sqlite3.connect(path)
+        # Streamlit runs scripts on worker threads, so allow cross-thread use behind a lock
+        self.db = sqlite3.connect(path, check_same_thread=False)
+        self._lock = threading.RLock()
         self.db.executescript(_SCHEMA)
         self.hits = {"verdict": 0, "narration": 0}
         self.misses = {"verdict": 0, "narration": 0}
@@ -58,19 +61,23 @@ class Cache:
 
     # -- internals --------------------------------------------------------
     def _peek(self, table: str, key: str):
-        return self.db.execute(f"SELECT 1 FROM {table} WHERE key=?", (key,)).fetchone()
+        with self._lock:
+            return self.db.execute(f"SELECT 1 FROM {table} WHERE key=?", (key,)).fetchone()
 
     def _get(self, table: str, key: str, kind: str) -> str:
         self.hits[kind] += 1
-        return self.db.execute(f"SELECT body FROM {table} WHERE key=?", (key,)).fetchone()[0]
+        with self._lock:
+            return self.db.execute(f"SELECT body FROM {table} WHERE key=?", (key,)).fetchone()[0]
 
     def _miss(self, kind: str):
         self.misses[kind] += 1
         return None
 
     def _put(self, table: str, key: str, body: str) -> None:
-        self.db.execute(f"INSERT OR REPLACE INTO {table}(key, body) VALUES (?, ?)", (key, body))
-        self.db.commit()
+        with self._lock:
+            self.db.execute(f"INSERT OR REPLACE INTO {table}(key, body) VALUES (?, ?)",
+                            (key, body))
+            self.db.commit()
 
     def close(self) -> None:
         self.db.close()

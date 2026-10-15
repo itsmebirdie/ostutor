@@ -168,3 +168,33 @@ def test_sqlite_cache_persists_on_disk(tmp_path):
     c2 = Cache(path); analyze_cached(DEADLOCK, c2)
     assert c2.hits["verdict"] == 1
     c2.close()
+
+
+# ---- retired models / reasoning models -------------------------------------
+def test_retired_model_gives_an_actionable_error():
+    msg = "The model `llama-3.3-70b-versatile` does not exist or you do not have access to it."
+    client, calls = make_client([(404, {"error": {"message": msg}}, {})], model="old-model")
+    with pytest.raises(LLMUnavailable) as e:
+        client.complete("s", "u")
+    assert "old-model" in str(e.value) and "ostutor.cli models" in str(e.value)
+    assert calls["n"] == 1  # not retried
+
+
+def test_default_model_is_not_the_retired_llama():
+    assert LLMConfig().model == "openai/gpt-oss-120b"
+
+
+def test_reasoning_effort_is_sent_only_to_gpt_oss_models():
+    c1, calls1 = make_client(["x"], model="openai/gpt-oss-120b")
+    c1.complete("s", "u")
+    assert calls1["bodies"][0]["reasoning_effort"] == "low"
+    c2, calls2 = make_client(["x"], model="qwen/qwen3.6-27b")
+    c2.complete("s", "u")
+    assert "reasoning_effort" not in calls2["bodies"][0]
+
+
+def test_empty_reply_from_a_reasoning_model_is_treated_as_bad_output_not_a_crash():
+    v = analyze(DEADLOCK)
+    client, _ = make_client([(200, {"choices": [{"message": {"content": None}}]}, {}),
+                             ok_response(DEADLOCK, v)])
+    assert explain(DEADLOCK, v, client).source == "llm"

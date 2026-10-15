@@ -4,6 +4,8 @@
   python -m ostutor.cli analyze prog.ost --llm              # LLM narration, checked
   python -m ostutor.cli analyze prog.ost --llm --db cache.sqlite
   python -m ostutor.cli ping                                # test your API key
+  python -m ostutor.cli models                              # list usable model ids
+  python -m ostutor.cli warm                                # pre-record demo narrations
 """
 from __future__ import annotations
 
@@ -14,7 +16,13 @@ from pathlib import Path
 
 from ostutor.cache.store import Cache
 from ostutor.dsl.parser import ParseError, canonical_hash, parse
-from ostutor.narration.llm import FixtureStore, LLMClient, LLMConfig, LLMUnavailable
+from ostutor.narration.llm import (
+    FixtureStore,
+    LLMClient,
+    LLMConfig,
+    LLMUnavailable,
+    list_models,
+)
 from ostutor.narration.pipeline import analyze_cached, explain
 from ostutor.slice.explorer import ProgramError, StateBudgetExceeded
 from ostutor.slice.replay import replay
@@ -102,6 +110,44 @@ def cmd_ping(a) -> int:
     return 0
 
 
+def cmd_warm(a) -> int:
+    """Pre-record LLM narrations for every example so the demo can run offline."""
+    cfg = LLMConfig.from_env()
+    cache = Cache(a.db)
+    fx = FixtureStore(a.fixtures, "auto")
+    llm = LLMClient(cfg, fixtures=fx)
+    bad = 0
+    try:
+        for f in sorted(Path(a.programs).glob("*.ost")):
+            parsed = parse(f.read_text())
+            v = analyze_cached(parsed.program, cache, parsed.loop_unroll)
+            ex = explain(parsed.program, v, llm, cache)
+            ok = ex.source in ("llm", "cache")
+            bad += not ok
+            print(f"{f.stem:24} {ex.badge:22} {ex.note}")
+    finally:
+        cache.close()
+    print(f"\nLLM calls: {llm.calls}, tokens: {llm.tokens_used}. Fixtures in {a.fixtures}/")
+    if bad:
+        print(f"{bad} program(s) fell back to the template; re-run, or check `ping`/`models`.")
+    return 1 if bad else 0
+
+
+def cmd_models(a) -> int:
+    cfg = LLMConfig.from_env()
+    try:
+        ids = list_models(cfg)
+    except LLMUnavailable as e:
+        print(f"FAILED: {e}")
+        return 1
+    print(f"models available to your key at {cfg.base_url}:")
+    for m in ids:
+        print(f"  {m}{'   <- current OSTUTOR_MODEL' if m == cfg.model else ''}")
+    if cfg.model not in ids:
+        print(f"\nWARNING: '{cfg.model}' is not in this list. Set OSTUTOR_MODEL=<id> in .env.")
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="ostutor", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -116,6 +162,12 @@ def main(argv=None) -> int:
     p.add_argument("--budget", type=int, default=300_000, help="state budget")
     p.add_argument("--json", action="store_true")
     p.set_defaults(fn=cmd_analyze)
+    w = sub.add_parser("warm", help="pre-record LLM narrations for all examples (demo prep)")
+    w.add_argument("--programs", default="data/programs")
+    w.add_argument("--db", default="demo_cache.sqlite")
+    w.add_argument("--fixtures", default="demo_fixtures")
+    w.set_defaults(fn=cmd_warm)
+    sub.add_parser("models", help="list model ids your key can use").set_defaults(fn=cmd_models)
     q = sub.add_parser("ping", help="check that your API key works")
     q.set_defaults(fn=cmd_ping)
     a = ap.parse_args(argv)

@@ -98,6 +98,17 @@ Setup for LLM access: see `docs/LLM_SETUP.md`.
 Still not built: semaphores/condition variables, Tier B/C, starvation, lost signal,
 simulators beyond the Round Robin slice, RAG, router, API, UI.
 
+## Streamlit demo
+
+```bash
+pip install -e ".[dev]"
+python -m ostutor.cli warm        # optional: pre-record LLM narrations for an offline-safe demo
+streamlit run streamlit_app.py
+```
+Tabs: concurrency analysis (verdict, witness, replay, state graph, checked narration, live
+"fool the checker"), interleavings vs states, Round Robin mutant diagnosis. See `docs/DEMO.md`
+for the five-minute script, fallbacks and likely questions.
+
 ## Tests, CI and releases
 
 ```bash
