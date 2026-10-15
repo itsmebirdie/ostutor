@@ -1,0 +1,12 @@
+# Inconsistent lock order: T1 takes a then b, T2 takes b then a.
+mutex a, b
+thread T1:
+    lock a
+    lock b
+    unlock b
+    unlock a
+thread T2:
+    lock b
+    lock a
+    unlock a
+    unlock b

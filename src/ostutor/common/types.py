@@ -56,3 +56,18 @@ def program_hash(program: dict) -> str:
     """Hash of the program as given (the slice has no canonicalisation yet)."""
     blob = json.dumps(program, sort_keys=True, default=list)
     return "sha256:" + hashlib.sha256(blob.encode()).hexdigest()
+
+
+def verdict_from_dict(d: dict) -> Verdict:
+    """Inverse of Verdict.to_dict() (used by the SQLite cache)."""
+    w = d.get("witness")
+    witness = None
+    if w:
+        witness = Trace(w["kind"], [Step(**s) for s in w["steps"]], w["vocab"],
+                        w.get("params", {}))
+    return Verdict(
+        label=d["label"], completeness=d["completeness"], bounds=d["bounds"],
+        states_explored=d["states_explored"],
+        fairness_assumption=d.get("fairness_assumption"), witness=witness,
+        critical_point=d.get("critical_point"), program_hash=d["program_hash"],
+        detail=d.get("detail", {}))

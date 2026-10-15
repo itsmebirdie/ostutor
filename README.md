@@ -1,9 +1,9 @@
 # OS Tutor: review slice
 
-A thin vertical cut through the design: a deterministic explorer computes the verdict,
-the shortest witness and the critical decision point; template narration is then
-**mechanically checked** against what was computed. No LLM, no network, no dependencies
-except `pytest` for the tests.
+A deterministic explorer computes the verdict, the shortest witness and the critical
+decision point; narration (template or LLM) is then **mechanically checked** against what
+was computed. The LLM is optional: with no key the tutor falls back to templates.
+Still no runtime dependencies (the LLM client uses the standard library).
 
 ## Setup (Python 3.11 or newer)
 
@@ -73,3 +73,27 @@ tests/                        explorer, replay, checker, rr
 ## Not built (by design)
 
 DSL parser, Tier B/C, starvation and lost signal, LLM calls, RAG, API/UI, SQLite cache.
+
+
+## Added in v0.2 (Phase 1 and 3 pieces)
+
+```bash
+python -m ostutor.cli analyze data/programs/dining_3_deadlock.ost          # text program in, verdict out
+python -m ostutor.cli analyze prog.ost --llm --db cache.sqlite             # checked LLM narration + cache
+python -m ostutor.cli ping                                                  # test your API key
+```
+
+| Path | Role |
+|---|---|
+| `dsl/parser.py` | text DSL -> program dict, loop unrolling, line-numbered errors, canonical hash |
+| `narration/evidence.py` | compact evidence the LLM sees (about 1,000 tokens max) |
+| `narration/llm.py` | OpenAI-compatible client, retry, fixtures record/replay |
+| `narration/pipeline.py` | ask LLM, check, re-prompt twice, fall back to template |
+| `cache/store.py` | SQLite cache for verdicts and checked narrations |
+| `cli.py` | the command line above |
+| `data/programs/*.ost` | six example programs (3 original, dining philosophers x2, loop) |
+
+Setup for LLM access: see `docs/LLM_SETUP.md`.
+
+Still not built: semaphores/condition variables, Tier B/C, starvation, lost signal,
+simulators beyond the Round Robin slice, RAG, router, API, UI.

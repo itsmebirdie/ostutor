@@ -272,7 +272,7 @@ def _safe_set(ex: Exploration, bad: set) -> set:
     return {s for s, l in labels.items() if l != "MUST_FAIL"}
 
 
-def analyze_full(program: dict, budget: int = DEFAULT_BUDGET):
+def analyze_full(program: dict, budget: int = DEFAULT_BUDGET, loop_unroll: int = 0):
     """Return (Verdict, Exploration, state_labels)."""
     ex = explore(program, budget)
     m = ex.model
@@ -307,7 +307,7 @@ def analyze_full(program: dict, budget: int = DEFAULT_BUDGET):
     verdict = Verdict(
         label=label,
         completeness="complete_for_bound",
-        bounds={"loop_unroll": 0, "buffer": 0, "state_budget": budget},
+        bounds={"loop_unroll": loop_unroll, "buffer": 0, "state_budget": budget},
         states_explored=len(ex.order),
         fairness_assumption=None,
         witness=witness,
@@ -318,5 +318,5 @@ def analyze_full(program: dict, budget: int = DEFAULT_BUDGET):
     return verdict, ex, labels
 
 
-def analyze(program: dict, budget: int = DEFAULT_BUDGET) -> Verdict:
-    return analyze_full(program, budget)[0]
+def analyze(program: dict, budget: int = DEFAULT_BUDGET, loop_unroll: int = 0) -> Verdict:
+    return analyze_full(program, budget, loop_unroll)[0]

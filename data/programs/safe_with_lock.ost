@@ -1,0 +1,12 @@
+mutex m
+shared x
+thread T1:
+    lock m
+    read x
+    write x
+    unlock m
+thread T2:
+    lock m
+    read x
+    write x
+    unlock m

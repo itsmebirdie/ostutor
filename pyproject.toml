@@ -4,10 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ostutor"
-version = "0.1.0"
-description = "Review slice: deterministic interleaving explorer with checked narration"
+version = "0.2.0"
+description = "Deterministic interleaving explorer with checked LLM narration"
 requires-python = ">=3.11"
 dependencies = []
+
+[project.scripts]
+ostutor = "ostutor.cli:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=7"]

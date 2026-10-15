@@ -1,0 +1,15 @@
+# Locked increment in a loop: safe, with a reported loop bound of 2.
+mutex m
+shared counter
+thread T1:
+    repeat 2:
+        lock m
+        read counter
+        write counter
+        unlock m
+thread T2:
+    repeat 2:
+        lock m
+        read counter
+        write counter
+        unlock m

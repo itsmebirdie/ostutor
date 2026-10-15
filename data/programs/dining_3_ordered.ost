@@ -1,0 +1,17 @@
+# Fix: P3 takes the lower-numbered fork first, so the lock order has no cycle.
+mutex f1, f2, f3
+thread P1:
+    lock f1
+    lock f2
+    unlock f2
+    unlock f1
+thread P2:
+    lock f2
+    lock f3
+    unlock f3
+    unlock f2
+thread P3:
+    lock f1
+    lock f3
+    unlock f3
+    unlock f1

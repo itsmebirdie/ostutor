@@ -53,3 +53,46 @@ def test_invented_mutex_in_backticks_rejected():
     n = narrate(prog, v)
     n["summary"] += " `q` was held."
     assert not check(n, v, prog).ok
+
+
+# ---- regression tests for the limitations found in the review report -------
+def test_after_2_steps_on_a_one_step_race_witness_is_rejected():
+    """Report limitation 1: '2' was accepted because it equals the thread count."""
+    v = analyze(PROGRAMS["race_no_lock"])
+    n = narrate(PROGRAMS["race_no_lock"], v)
+    n["summary"] += " After 2 steps the race appears."
+    res = check(n, v, PROGRAMS["race_no_lock"])
+    assert not res.ok and any(x["rule"] == "number" for x in res.violations)
+
+
+def test_thread_count_cannot_stand_in_for_a_state_count():
+    v = analyze(PROGRAMS["deadlock_two_locks"])
+    n = narrate(PROGRAMS["deadlock_two_locks"], v)
+    n["summary"] += " Searching visited 2 states."
+    assert not check(n, v, PROGRAMS["deadlock_two_locks"]).ok
+
+
+def test_correct_counts_in_free_text_are_accepted():
+    p = PROGRAMS["deadlock_two_locks"]
+    v = analyze(p)
+    n = narrate(p, v)
+    n["summary"] += " The program has 2 threads and 2 mutexes; the witness has 2 steps."
+    assert check(n, v, p).ok
+
+
+def test_bare_invented_name_after_a_keyword_is_rejected():
+    """Report limitation 2: names outside backticks."""
+    p = PROGRAMS["deadlock_two_locks"]
+    v = analyze(p)
+    n = narrate(p, v)
+    n["summary"] += " Thread T1 then waits on mutex c forever."
+    res = check(n, v, p)
+    assert not res.ok and any("unknown name c" in x["detail"] for x in res.violations)
+
+
+def test_prose_after_keywords_is_not_a_false_positive():
+    p = PROGRAMS["deadlock_two_locks"]
+    v = analyze(p)
+    n = narrate(p, v)
+    n["summary"] += " Each thread holds a lock while it waits for the other lock."
+    assert check(n, v, p).ok

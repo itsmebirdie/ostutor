@@ -1,0 +1,7 @@
+shared x = 0
+thread T1:
+    read x
+    write x
+thread T2:
+    read x
+    write x
