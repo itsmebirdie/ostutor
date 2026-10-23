@@ -27,10 +27,16 @@ def _ranks(scores: list[float]) -> dict[int, int]:
 class Retriever:
     """`dense_min` and `bm25_min` are the not-found thresholds: a query needs lexical
     evidence (BM25 at least `bm25_min`) or semantic evidence (cosine at least `dense_min`).
-    Tune them on a validation query set (eval/rag_eval.py), not by eye."""
+    Tune them on a validation query set (eval/run_rag_real.py), not by eye. NOTE the scales
+    differ by embedder: the offline hashing embedder gives cosines near 0 for unrelated text,
+    but bge cosines are compressed (unrelated passages often score 0.3 to 0.5), so a dense
+    threshold chosen for one embedder is wrong for the other."""
 
-    def __init__(self, index: Index, bm25_min: float = 1.0, dense_min: float = 0.25):
-        self.index, self.bm25_min, self.dense_min = index, bm25_min, dense_min
+    def __init__(self, index: Index, bm25_min: float = 1.0, dense_min: float = 0.25,
+                 mode: str = "hybrid"):
+        if mode not in ("hybrid", "bm25", "dense"):
+            raise ValueError("mode must be 'hybrid', 'bm25' or 'dense'")
+        self.index, self.bm25_min, self.dense_min, self.mode = index, bm25_min, dense_min, mode
 
     def retrieve(self, query: str, k: int = 4) -> list[Hit]:
         idx = self.index
@@ -40,7 +46,9 @@ class Retriever:
         bm = idx.bm25.scores(q) if q else [0.0] * len(idx.chunks)
         de = idx.dense_scores(query)
         rb, rd = _ranks(bm), _ranks(de)
-        fused = {i: (1 / (RRF_K + rb[i])) + (1 / (RRF_K + rd[i])) for i in range(len(bm))}
+        use_b, use_d = self.mode in ("hybrid", "bm25"), self.mode in ("hybrid", "dense")
+        fused = {i: (1 / (RRF_K + rb[i]) if use_b else 0.0) + (1 / (RRF_K + rd[i]) if use_d else 0.0)
+                 for i in range(len(bm))}  # ablations: one ranker only
         best = sorted(fused, key=lambda i: -fused[i])[:k]
         hits = [Hit(idx.chunks[i], fused[i], bm[i], de[i], {"bm25": rb[i], "dense": rd[i]})
                 for i in best]
