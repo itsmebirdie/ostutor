@@ -7,3 +7,7 @@ data/corpus_raw/
 
 # demo artefacts (fixtures in demo_fixtures/ are meant to be committed)
 demo_cache.sqlite
+
+# real course material (copyright) and local indexes
+data/corpus_raw/
+*.index.json

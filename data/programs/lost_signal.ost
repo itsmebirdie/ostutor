@@ -1,0 +1,12 @@
+# Bug: a condition variable signal is not remembered. If Signaller runs first, the
+# signal is lost and Waiter sleeps forever (no predicate re-check).
+mutex m
+cond c
+thread Waiter:
+    lock m
+    wait c, m
+    unlock m
+thread Signaller:
+    lock m
+    signal c
+    unlock m

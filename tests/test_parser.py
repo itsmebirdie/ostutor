@@ -67,8 +67,8 @@ def test_equivalent_programs_share_a_canonical_hash():
 @pytest.mark.parametrize("src,line,fragment", [
     ("mutex a\nthread T1:\n  lock b\n", 3, "mutex 'b' is not declared"),
     ("shared x\nthread T1:\n  read y\n", 3, "shared variable 'y' is not declared"),
-    ("mutex a\nthread T1:\n  wait a\n", 3, "condition variables"),
-    ("semaphore s 1\n", 1, "semaphores"),
+    ("mutex a\nthread T1:\n  sleep 5\n", 3, "timing"),
+    ("semaphore s 1\n", 1, "semaphore s = 1"),
     ("thread T1:\n  if x:\n    read x\n", 2, "conditionals"),
     ("mutex a\nthread T1\n  lock a\n", 2, "thread T1:"),
     ("mutex a\nthread T1:\nlock a\n", 2, "no statements"),

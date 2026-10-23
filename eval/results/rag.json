@@ -1,0 +1,11 @@
+{
+ "chunks": 6,
+ "hit1": 22,
+ "hit3": 24,
+ "n": 24,
+ "mrr": 0.9583333333333334,
+ "missed": 0,
+ "leaked": 1,
+ "off_topic": 8,
+ "headline": "hit@1 22/24, hit@3 24/24, off-topic leaked 1/8"
+}

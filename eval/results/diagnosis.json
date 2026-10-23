@@ -1,0 +1,13 @@
+{
+ "mutants": 16,
+ "reachable": 16,
+ "recognised": 16,
+ "correct_not_blamed": 225,
+ "correct_total": 225,
+ "junk_matched": 0,
+ "junk_total": 225,
+ "slips": 60,
+ "slip_ok": 58,
+ "synthetic_only": true,
+ "headline": "16/16 mutants recognised (synthetic, circular)"
+}

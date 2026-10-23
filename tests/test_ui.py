@@ -96,6 +96,10 @@ def new_app():
     return at
 
 
+def example_box(at):
+    return next(s for s in at.selectbox if s.label == "Example")
+
+
 def click(at, label):
     next(b for b in at.button if b.label == label).click()
     at.run()
@@ -104,7 +108,7 @@ def click(at, label):
 
 def test_app_loads_with_default_example_and_no_key():
     at = new_app()
-    assert "deadlock_two_locks" in at.selectbox[0].value
+    assert "deadlock_two_locks" in example_box(at).value
     assert "T1" in at.text_area[0].value  # the example program is in the editor
     assert any("Analyze" in b.label for b in at.button)
 
@@ -133,7 +137,7 @@ def test_app_live_edit_of_summary_is_checked():
 
 def test_app_switching_example_changes_the_program_and_verdict():
     at = new_app()
-    at.selectbox[0].select("safe_with_lock").run()
+    example_box(at).select("safe_with_lock").run()
     assert "lock m" in at.text_area[0].value
     click(at, "Analyze")
     assert {m.label: m.value for m in at.metric}["Verdict"] == "SAFE"
@@ -141,9 +145,9 @@ def test_app_switching_example_changes_the_program_and_verdict():
 
 def test_app_parse_error_is_shown_not_crashed():
     at = new_app()
-    at.text_area[0].set_value("mutex a\nthread T1:\n  wait a\n").run()
+    at.text_area[0].set_value("mutex a\nthread T1:\n  sleep 5\n").run()
     click(at, "Analyze")
-    assert any("line 3" in e.value and "condition variables" in e.value for e in at.error)
+    assert any("line 3" in e.value and "timing" in e.value for e in at.error)
 
 
 def test_app_llm_toggle_without_key_falls_back_to_template():
@@ -157,13 +161,13 @@ def test_app_llm_toggle_without_key_falls_back_to_template():
 def test_app_replays_recorded_fixture_with_no_key(tmp_path, monkeypatch):
     """The offline-demo promise: recorded LLM answers are shown as 'checked (LLM)'."""
     import ostutor.ui.app as app
+    from ostutor.explorer import analyze as general_analyze
     from ostutor.narration.llm import FixtureStore, LLMClient, LLMConfig
-    from ostutor.narration.pipeline import explain
-    from ostutor.slice.narrate import narrate
+    from ostutor.narration.pipeline import explain, template_narrate
 
     program, unroll = load("deadlock_two_locks")
-    verdict = analyze(program)
-    canned = json.dumps(narrate(program, verdict))
+    verdict = general_analyze(program)  # the app builds its evidence from this verdict
+    canned = json.dumps(template_narrate(program, verdict))
     rec = LLMClient(LLMConfig(), FixtureStore(tmp_path, "record"),
                     transport=lambda *a: (200, {"choices": [{"message": {"content": canned}}],
                                                 "usage": {"total_tokens": 1}}, {}))
@@ -181,3 +185,60 @@ def test_app_scaling_and_round_robin_tabs_render():
     at = new_app()
     assert any("184,756" in c.value for c in at.caption)
     assert any("rr_preempted_before_new_arrival" in e.value for e in at.error)
+
+
+# ---------------------------------------------------------------- new capabilities in the UI
+def test_app_shows_semaphore_and_starvation_examples():
+    at = new_app()
+    example_box(at).select("producer_consumer_bad_order").run()
+    click(at, "Analyze")
+    assert {m.label: m.value for m in at.metric}["Verdict"] == "DEADLOCK"
+    example_box(at).select("starvation_unfair_mutex").run()
+    click(at, "Analyze")
+    m = {m.label: m.value for m in at.metric}
+    assert m["Verdict"] == "STARVATION" and m["Possible interleavings"] == "unbounded"
+    assert any("weak fairness" in x.value for x in at.markdown)
+
+
+def test_app_fairness_control_changes_the_verdict():
+    at = new_app()
+    example_box(at).select("starvation_unfair_mutex").run()
+    next(s for s in at.selectbox if s.label.startswith("Fairness")).select("strong").run()
+    click(at, "Analyze")
+    assert {m.label: m.value for m in at.metric}["Verdict"] == "SAFE"
+
+
+def test_app_tier_control_runs_symmetry_reduction():
+    at = new_app()
+    example_box(at).select("dining_5_deadlock").run()
+    next(s for s in at.selectbox if s.label == "Tier").select("B").run()
+    click(at, "Analyze")
+    m = {m.label: m.value for m in at.metric}
+    assert m["Verdict"] == "DEADLOCK" and m["States explored"] == "351"
+    assert any("reduced_but_complete" in c.value for c in at.caption)
+
+
+def test_app_diagnose_any_topic_names_the_misconception():
+    at = new_app()
+    sel = next(s for s in at.selectbox if s.label == "Problem")
+    sel.select("Paging: LRU (3 frames)").run()
+    fill = next(s for s in at.selectbox if s.label.startswith("Fill the answer"))
+    fill.select("lru_no_update_on_hit").run()
+    assert any("lru_no_update_on_hit" in e.value for e in at.error)
+
+
+def test_app_diagnose_banker_accepts_the_correct_answer():
+    at = new_app()
+    next(s for s in at.selectbox if s.label == "Problem").select("Banker's: safety").run()
+    assert any("Correct" in s.value or "correct" in s.value for s in at.success)
+
+
+def test_app_ask_the_course_routes_and_cites():
+    at = new_app()
+    q = next(t for t in at.text_input if t.label == "Question")
+    q.set_value("How does chmod 755 work?").run()
+    assert any("chmod 755" in s.value for s in at.success)
+    assert any("unix_basics.md" in c.value for c in at.caption)
+    q = next(t for t in at.text_input if t.label == "Question")
+    q.set_value("who won the football world cup").run()
+    assert any("Not found" in w.value for w in at.warning)

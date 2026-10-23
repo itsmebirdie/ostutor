@@ -1,0 +1,9 @@
+# B waits on a semaphore nobody ever posts, while A runs forever: starved under any fairness.
+mutex m
+semaphore s = 0
+thread A:
+    forever:
+        lock m
+        unlock m
+thread B:
+    down s

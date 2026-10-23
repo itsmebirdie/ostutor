@@ -4,8 +4,9 @@ from __future__ import annotations
 import math
 
 from ostutor.common.types import Verdict
+from ostutor.explorer import analyze_full
 from ostutor.slice import rr
-from ostutor.slice.explorer import _chain, analyze_full, explore
+from ostutor.slice.explorer import StateBudgetExceeded, explore
 
 MAX_GRAPH_NODES = 100
 _FILL = {"ALWAYS_SAFE": "#c8e6c9", "MAY_FAIL": "#fff3b0", "MUST_FAIL": "#ffcdd2"}
@@ -31,24 +32,34 @@ def state_graph_dot(program: dict, loop_unroll: int = 0,
     """Graphviz DOT of the explored state graph, or None when it is too big to read.
 
     Node colour = backward-propagated label (green ALWAYS_SAFE, yellow MAY_FAIL, red
-    MUST_FAIL); the shortest witness is drawn with thick red edges.
+    MUST_FAIL). The shortest witness (or the starvation cycle) is drawn with thick red
+    edges. Works for every program the explorer supports (semaphores, conditions, loops).
     """
-    verdict, ex, labels = analyze_full(program, loop_unroll=loop_unroll)
-    if len(ex.order) > max_nodes:
+    try:
+        verdict, ex, labels = analyze_full(program, budget=max_nodes, loop_unroll=loop_unroll)
+    except StateBudgetExceeded:
         return None
     m = ex.model
     ids = {s: f"s{i}" for i, s in enumerate(ex.order)}
-    bad = ex.deadlocks[0] if ex.deadlocks else (ex.race_states[0] if ex.race_states else None)
-    on_path = set()
-    if bad is not None:
-        on_path = {(p, n) for p, _, n in _chain(ex, bad)}
+    path: set = set()
+    bad = None
+    if verdict.witness:
+        state = m.initial()
+        for st in verdict.witness.steps:
+            nxt = m.step(state, m.threads.index(st.thread))
+            path.add((state, nxt))
+            state = nxt
+        if verdict.label in ("deadlock", "lost_signal", "race"):
+            bad = state
 
     def name(s) -> str:
-        pcs, owners = s
+        pcs, owners, sems, waits, _ = s
         pos = "  ".join(f"{t}@{pc}" for t, pc in zip(m.threads, pcs))
-        held = ", ".join(f"{mu}={m.threads[o]}" for mu, o in zip(m.mutexes, owners)
-                         if o is not None)
-        return pos + (f"\\n[{held}]" if held else "")
+        extra = [f"{mu}={m.threads[o]}" for mu, o in zip(m.mutexes, owners) if o >= 0]
+        extra += [f"{nm}:{v}" for nm, v in zip(m.sem_names, sems)]
+        extra += [f"{c} waiting: {','.join(m.threads[t] for t in q)}"
+                  for c, q in zip(m.conds, waits) if q]
+        return pos + (f"\\n[{'; '.join(extra)}]" if extra else "")
 
     lines = ["digraph G {", "  rankdir=LR;",
              '  node [shape=box, style="filled,rounded", fontname="Helvetica", fontsize=10];',
@@ -60,7 +71,7 @@ def state_graph_dot(program: dict, loop_unroll: int = 0,
         lines.append(f'  {ids[s]} [label="{name(s)}", fillcolor="{_FILL[labels[s]]}"{extra}];')
     for s in ex.order:
         for t, s2 in ex.edges[s]:
-            hot = (s, s2) in on_path
+            hot = (s, s2) in path
             style = ', color="#b71c1c", penwidth=3' if hot else ""
             lines.append(f'  {ids[s]} -> {ids[s2]} [label="{m.threads[t]}"{style}];')
     lines.append("}")

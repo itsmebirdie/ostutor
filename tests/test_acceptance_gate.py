@@ -92,6 +92,16 @@ def test_new_cli_end_to_end_without_a_key(tmp_path):
 
 def test_cli_parse_error_is_friendly_and_exit_code_2(tmp_path):
     bad = tmp_path / "bad.ost"
-    bad.write_text("mutex a\nthread T1:\n  wait a\n")
+    bad.write_text("mutex a\nthread T1:\n  sleep 5\n")
     code, _, err = run(["ostutor.cli", "analyze", str(bad)], tmp_path)
-    assert code == 2 and "line 3" in err and "condition variables" in err
+    assert code == 2 and "line 3" in err and "timing" in err
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="needs a POSIX shell pipeline")
+def test_cli_survives_a_reader_that_closes_the_pipe_early(tmp_path):
+    """`ostutor analyze ... | grep -q ...` must not print a BrokenPipeError traceback."""
+    env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
+    prog = ROOT / "data" / "programs" / "deadlock_two_locks.ost"
+    r = subprocess.run(["bash", "-c", f"{sys.executable} -m ostutor.cli analyze {prog} | head -1"],
+                       capture_output=True, text=True, env=env, cwd=tmp_path, timeout=60)
+    assert r.stdout.startswith("label") and "Traceback" not in r.stderr and "Broken" not in r.stderr

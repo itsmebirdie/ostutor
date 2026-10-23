@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
 from ostutor.cache.store import Cache
 from ostutor.dsl.parser import ParseError, canonical_hash, parse
+from ostutor.explorer import replay
 from ostutor.narration.llm import (
     FixtureStore,
     LLMClient,
@@ -25,7 +27,6 @@ from ostutor.narration.llm import (
 )
 from ostutor.narration.pipeline import analyze_cached, explain
 from ostutor.slice.explorer import ProgramError, StateBudgetExceeded
-from ostutor.slice.replay import replay
 
 
 def cmd_analyze(a) -> int:
@@ -48,13 +49,14 @@ def _analyze(a, cache) -> int:
         return 2
     program = parsed.program
     try:
-        v = analyze_cached(program, cache, parsed.loop_unroll, a.budget)
+        v = analyze_cached(program, cache, parsed.loop_unroll, a.budget, a.tier, a.fairness,
+                           a.pct_runs, a.seed)
     except ProgramError as e:
         print(f"Program error: {e}", file=sys.stderr)
         return 2
     except StateBudgetExceeded as e:
-        print(f"Search stopped: {e}. Tier B/C reduction is not built yet; "
-              "try a smaller program or --budget.", file=sys.stderr)
+        print(f"Search stopped: {e}. Use --tier auto (default) to fall back to symmetry "
+              "reduction or sampling, or raise --budget.", file=sys.stderr)
         return 3
 
     llm = None
@@ -160,6 +162,12 @@ def main(argv=None) -> int:
     p.add_argument("--fixture-mode", choices=["auto", "record", "replay"], default="auto")
     p.add_argument("--unroll", type=int, default=2, help="bound for 'while' loops")
     p.add_argument("--budget", type=int, default=300_000, help="state budget")
+    p.add_argument("--tier", choices=["auto", "A", "B", "C"], default="auto",
+                   help="A exhaustive, B symmetry-reduced, C PCT sampling (default: auto)")
+    p.add_argument("--fairness", choices=["weak", "strong"], default="weak",
+                   help="fairness assumption for starvation analysis")
+    p.add_argument("--pct-runs", type=int, default=2000, help="Tier C random schedules")
+    p.add_argument("--seed", type=int, default=0, help="Tier C random seed")
     p.add_argument("--json", action="store_true")
     p.set_defaults(fn=cmd_analyze)
     w = sub.add_parser("warm", help="pre-record LLM narrations for all examples (demo prep)")
@@ -171,7 +179,14 @@ def main(argv=None) -> int:
     q = sub.add_parser("ping", help="check that your API key works")
     q.set_defaults(fn=cmd_ping)
     a = ap.parse_args(argv)
-    return a.fn(a)
+    try:
+        return a.fn(a)
+    except BrokenPipeError:  # the reader of our output (head, grep -q) went away: not an error
+        try:
+            os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        except (OSError, ValueError):
+            pass
+        return 0
 
 
 if __name__ == "__main__":

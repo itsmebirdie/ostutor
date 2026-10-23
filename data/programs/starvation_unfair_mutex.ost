@@ -1,0 +1,15 @@
+# Three threads loop on one mutex. Nothing forces the lock to be handed to everyone:
+# starvation under WEAK fairness, none under STRONG fairness.
+mutex m
+thread A:
+    forever:
+        lock m
+        unlock m
+thread B:
+    forever:
+        lock m
+        unlock m
+thread C:
+    forever:
+        lock m
+        unlock m
