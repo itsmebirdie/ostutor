@@ -21,7 +21,6 @@ import re
 from dataclasses import dataclass, field
 
 from ostutor.common.types import LABELS, Verdict
-from ostutor.slice.explorer import Model
 
 _NUM = re.compile(r"(?<![A-Za-z0-9_`.])\d+(?![A-Za-z0-9_`])")
 _TICKED = re.compile(r"`([^`]+)`")
@@ -41,6 +40,22 @@ _PROSE = {"a", "an", "the", "is", "are", "was", "that", "which", "has", "have", 
           "to", "on", "in", "of", "and", "or", "for", "with", "can", "cannot", "must",
           "will", "then", "while", "when", "waits", "blocks", "holds", "held",
           "order", "ordering", "acquisition", "acquires", "released", "release"}
+
+
+class _Info:
+    """The vocabulary of a program (works for every operation the explorer supports)."""
+
+    def __init__(self, program: dict):
+        self.threads = sorted(program["threads"])
+        self.mutexes = list(program["mutexes"])
+        self.shared = list(program["shared"])
+        self.sems = list(program.get("semaphores", {}))
+        self.conds = list(program.get("conds", []))
+
+    @property
+    def names(self) -> set:
+        return set(self.threads) | set(self.mutexes) | set(self.shared) | set(self.sems) \
+            | set(self.conds)
 
 
 @dataclass
@@ -63,7 +78,7 @@ def _numbers(text: str):
                nxt.group(1).lower() if nxt else "", text[:m.start()])
 
 
-def _number_problem(num: int, prev: str, nxt: str, before: str, m: Model,
+def _number_problem(num: int, prev: str, nxt: str, before: str, m: _Info,
                     verdict: Verdict, n_steps: int):
     """Return a detail string if the number is not justified by its context."""
     if prev in _STEP_WORDS or _STEP_CTX.search(before):
@@ -87,8 +102,8 @@ def _number_problem(num: int, prev: str, nxt: str, before: str, m: Model,
 
 def check(narration: dict, verdict: Verdict, program: dict) -> CheckResult:
     v: list[dict] = []
-    m = Model(program)
-    vocab = set(m.threads) | set(m.mutexes) | set(m.shared)
+    m = _Info(program)
+    vocab = m.names
     n_steps = len(verdict.witness.steps) if verdict.witness else 0
 
     # Rule 1: step indices

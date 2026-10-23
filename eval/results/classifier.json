@@ -1,0 +1,184 @@
+{
+ "cases": 44,
+ "programs": 39,
+ "tier_a_agree": 44,
+ "replay_ok": 26,
+ "witnesses": 26,
+ "narration_ok": 44,
+ "tier_b": [
+  {
+   "name": "dl_inversion_basic",
+   "agree": true,
+   "replays": true,
+   "states_A": 19,
+   "states_B": 11
+  },
+  {
+   "name": "dl_inversion_with_work",
+   "agree": true,
+   "replays": true,
+   "states_A": 32,
+   "states_B": 18
+  },
+  {
+   "name": "dl_inversion_unlock_order",
+   "agree": true,
+   "replays": true,
+   "states_A": 17,
+   "states_B": 10
+  },
+  {
+   "name": "dl_three_cycle",
+   "agree": true,
+   "replays": true,
+   "states_A": 87,
+   "states_B": 31
+  },
+  {
+   "name": "dl_dining_3",
+   "agree": true,
+   "replays": true,
+   "states_A": 87,
+   "states_B": 31
+  },
+  {
+   "name": "dl_dining_4",
+   "agree": true,
+   "replays": true,
+   "states_A": 391,
+   "states_B": 104
+  },
+  {
+   "name": "dl_and_race_together",
+   "agree": true,
+   "replays": true,
+   "states_A": 30,
+   "states_B": 17
+  },
+  {
+   "name": "safe_ordered_2",
+   "agree": true,
+   "replays": true,
+   "states_A": 16,
+   "states_B": 9
+  },
+  {
+   "name": "safe_single_lock_2",
+   "agree": true,
+   "replays": true,
+   "states_A": 16,
+   "states_B": 9
+  },
+  {
+   "name": "safe_single_lock_3",
+   "agree": true,
+   "replays": true,
+   "states_A": 44,
+   "states_B": 13
+  },
+  {
+   "name": "safe_readers_only",
+   "agree": true,
+   "replays": true,
+   "states_A": 8,
+   "states_B": 4
+  },
+  {
+   "name": "safe_private_variables",
+   "agree": true,
+   "replays": true,
+   "states_A": 4,
+   "states_B": 3
+  },
+  {
+   "name": "race_two_writers",
+   "agree": true,
+   "replays": true,
+   "states_A": 4,
+   "states_B": 3
+  },
+  {
+   "name": "race_read_modify_write",
+   "agree": true,
+   "replays": true,
+   "states_A": 9,
+   "states_B": 6
+  },
+  {
+   "name": "race_different_locks",
+   "agree": true,
+   "replays": true,
+   "states_A": 16,
+   "states_B": 10
+  },
+  {
+   "name": "race_loop_unprotected",
+   "agree": true,
+   "replays": true,
+   "states_A": 25,
+   "states_B": 15
+  },
+  {
+   "name": "safe_loop_locked",
+   "agree": true,
+   "replays": true,
+   "states_A": 45,
+   "states_B": 24
+  },
+  {
+   "name": "sem_binary_mutual_exclusion",
+   "agree": true,
+   "replays": true,
+   "states_A": 16,
+   "states_B": 9
+  },
+  {
+   "name": "sem_counting_two_permits",
+   "agree": true,
+   "replays": true,
+   "states_A": 16,
+   "states_B": 10
+  },
+  {
+   "name": "sem_two_semaphore_cycle",
+   "agree": true,
+   "replays": true,
+   "states_A": 19,
+   "states_B": 11
+  },
+  {
+   "name": "cond_two_waiters_one_signal",
+   "agree": true,
+   "replays": true,
+   "states_A": 44,
+   "states_B": 24
+  }
+ ],
+ "tier_c": {
+  "deadlock": {
+   "exact": 204,
+   "total": 220,
+   "any_failure": 219
+  },
+  "race": {
+   "exact": 160,
+   "total": 160,
+   "any_failure": 160
+  },
+  "lost_signal": {
+   "exact": 45,
+   "total": 60,
+   "any_failure": 60
+  }
+ },
+ "tier_c_false_alarms": 0,
+ "tier_c_safe_batches": 440,
+ "confusion": {
+  "deadlock->deadlock": 11,
+  "safe->safe": 18,
+  "race->race": 8,
+  "lost_signal->lost_signal": 3,
+  "starvation->starvation": 4
+ },
+ "headline": "Tier A agrees on 44/44; replay 26/26"
+}

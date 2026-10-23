@@ -1,0 +1,12 @@
+{
+ "cases": 32,
+ "agree": 31,
+ "misroutes": [
+  {
+   "message": "Is the C-SCAN algorithm fairer than SCAN?",
+   "wanted": "rag",
+   "got": "simulate"
+  }
+ ],
+ "headline": "31/32 agree"
+}

@@ -1,0 +1,8 @@
+{
+ "classifier": "Tier A agrees on 44/44; replay 26/26",
+ "efficiency": "94,864 states/s, 1,372 bytes/state at 7,759 states",
+ "faithfulness": "templates 44/44; tamper rejection 26/26, 44/44, 44/44, 44/44",
+ "diagnosis (synthetic)": "16/16 mutants recognised (synthetic, circular)",
+ "router": "31/32 agree",
+ "rag (sample corpus)": "hit@1 22/24, hit@3 24/24, off-topic leaked 1/8"
+}

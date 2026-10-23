@@ -10,15 +10,20 @@ steps change, so treat the numbers below as things to confirm in the console.
    "approval" is needed; a free account can create keys immediately.
 2. Open **API Keys** -> **Create API Key**, name it `ostutor`, and copy the key. It is shown
    once. It looks like `gsk_...`.
-3. In the console, open the **Limits** page (wording may vary) and note the daily token
-   cap for `llama-3.3-70b-versatile`. The report quotes 100,000 tokens/day from third-party
-   summaries; replace that with what the console says.
+3. In the console, open the **Limits** page (wording may vary) and note the rate and daily token
+   caps for the model you use. The report's 100,000 tokens/day figure was for
+   `llama-3.3-70b-versatile`, which **Groq retired on 2026-08-16**; do not reuse it for the
+   current default (`openai/gpt-oss-120b`). Replace it with what the console shows.
 4. In the repo:
    ```bash
    cp .env.example .env        # Windows: copy .env.example .env
    # edit .env and paste the key after GROQ_API_KEY=
-   python -m ostutor.cli ping  # should print "LLM access works."
+   python -m ostutor.cli models   # lists the model ids your key can use right now
+   python -m ostutor.cli ping     # should print "LLM access works."
    ```
+   Groq retires models regularly. If `ping` says a model "does not exist or you do not have
+   access", pick an id from `models` and set `OSTUTOR_MODEL=<id>` in `.env`
+   (https://console.groq.com/docs/deprecations lists replacements).
 5. Try it:
    ```bash
    python -m ostutor.cli analyze data/programs/deadlock_two_locks.ost --llm --db cache.sqlite

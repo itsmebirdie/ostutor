@@ -1,0 +1,17 @@
+# Bug: the consumer takes the mutex BEFORE waiting for an item, then sleeps holding it.
+mutex m
+semaphore empty = 1
+semaphore full = 0
+shared buf
+thread Producer:
+    down empty
+    lock m
+    write buf
+    unlock m
+    up full
+thread Consumer:
+    lock m
+    down full
+    read buf
+    unlock m
+    up empty

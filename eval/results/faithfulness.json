@@ -1,0 +1,26 @@
+{
+ "template_pass": 44,
+ "template_total": 44,
+ "tamper": {
+  "invented step index": {
+   "rejected": 26,
+   "total": 26
+  },
+  "unknown thread name": {
+   "rejected": 44,
+   "total": 44
+  },
+  "wrong number": {
+   "rejected": 44,
+   "total": 44
+  },
+  "wrong label": {
+   "rejected": 44,
+   "total": 44
+  }
+ },
+ "blind_spot_accepted": 26,
+ "blind_spot_total": 26,
+ "llm_rows": [],
+ "headline": "templates 44/44; tamper rejection 26/26, 44/44, 44/44, 44/44"
+}

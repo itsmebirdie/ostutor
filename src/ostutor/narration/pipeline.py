@@ -16,10 +16,12 @@ from dataclasses import dataclass, field
 
 from ostutor.cache.store import Cache
 from ostutor.common.types import Verdict
+from ostutor.explorer.model import is_legacy
 from ostutor.narration.evidence import encode_evidence
 from ostutor.narration.llm import LLMClient, LLMUnavailable
+from ostutor.narration.templates import narrate as general_narrate
 from ostutor.slice.check import check
-from ostutor.slice.narrate import narrate as template_narrate
+from ostutor.slice.narrate import narrate as slice_narrate
 
 PROMPT_VERSION = "v1"
 MAX_REPROMPTS = 2
@@ -87,6 +89,15 @@ class Explanation:
                 "template": "template", "template_fallback": "template fall-back"}[self.source]
 
 
+def template_narrate(program: dict, verdict: Verdict) -> dict:
+    """General narrator for verdicts from the explorer; the original slice narrator for
+    verdicts produced by the slice explorer (they have no `findings` detail)."""
+    if "findings" not in verdict.detail and is_legacy(program) and verdict.label in (
+            "safe", "race", "deadlock") and verdict.completeness != "sampled":
+        return slice_narrate(program, verdict)
+    return general_narrate(program, verdict)
+
+
 def explain(program: dict, verdict: Verdict, llm: LLMClient | None = None,
             cache: Cache | None = None, question: str = "why") -> Explanation:
     template = template_narrate(program, verdict)
@@ -126,16 +137,24 @@ def explain(program: dict, verdict: Verdict, llm: LLMClient | None = None,
 
 
 def analyze_cached(program: dict, cache: Cache | None, loop_unroll: int = 0,
-                   budget: int = 300_000) -> Verdict:
+                   budget: int = 300_000, tier: str = "auto", fairness: str = "weak",
+                   pct_runs: int = 2000, seed: int = 0) -> Verdict:
+    """Analyze with the explorer (auto-selecting Tier A, B or C) and cache the verdict."""
     from ostutor.common.types import program_hash
-    from ostutor.slice.explorer import analyze
+    from ostutor.explorer import analyze
+
+    def run() -> Verdict:
+        return analyze(program, budget, loop_unroll, tier=tier, fairness=fairness,
+                       pct_runs=pct_runs, seed=seed)
+
     if cache is None:
-        return analyze(program, budget, loop_unroll)
-    bounds = {"loop_unroll": loop_unroll, "state_budget": budget}
+        return run()
+    bounds = {"loop_unroll": loop_unroll, "state_budget": budget, "tier": tier,
+              "fairness": fairness, "pct_runs": pct_runs, "seed": seed}
     key = Cache.verdict_key(program_hash(program), bounds)
     hit = cache.get_verdict(key)
     if hit is not None:
         return hit
-    v = analyze(program, budget, loop_unroll)
+    v = run()
     cache.put_verdict(key, v)
     return v

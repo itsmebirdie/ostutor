@@ -5,7 +5,7 @@ Configuration (environment variables or a .env file in the working directory):
 
     OSTUTOR_API_KEY   (or GROQ_API_KEY)   the secret key
     OSTUTOR_BASE_URL  default https://api.groq.com/openai/v1
-    OSTUTOR_MODEL     default llama-3.3-70b-versatile
+    OSTUTOR_MODEL     default openai/gpt-oss-120b
 
 Fixtures (Build Plan 10.1): every response can be recorded once and replayed in
 tests so CI spends zero tokens. Modes: "replay" (never touches the network),
@@ -24,7 +24,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 DEFAULT_BASE_URL = "https://api.groq.com/openai/v1"
-DEFAULT_MODEL = "llama-3.3-70b-versatile"
+# Groq retired llama-3.3-70b-versatile on 2026-08-16 and recommends gpt-oss-120b / qwen3.6-27b.
+# Model ids change often: run `python -m ostutor.cli models` to list what your key can use.
+DEFAULT_MODEL = "openai/gpt-oss-120b"
 
 
 class LLMUnavailable(RuntimeError):
@@ -53,11 +55,12 @@ class LLMConfig:
     api_key: str = ""
     base_url: str = DEFAULT_BASE_URL
     model: str = DEFAULT_MODEL
-    max_tokens: int = 700
+    max_tokens: int = 2000  # reasoning models (gpt-oss) also spend tokens "thinking"
     temperature: float = 0.0
     timeout: float = 30.0
     json_mode: bool = True
     max_retries: int = 3
+    reasoning_effort: str = "low"  # sent only to gpt-oss models; keeps narration cheap
 
     @classmethod
     def from_env(cls) -> LLMConfig:
@@ -141,6 +144,8 @@ class LLMClient:
                              {"role": "user", "content": user}]}
         if c.json_mode:
             body["response_format"] = {"type": "json_object"}
+        if "gpt-oss" in c.model and c.reasoning_effort:
+            body["reasoning_effort"] = c.reasoning_effort
         headers = {"Authorization": f"Bearer {c.api_key}",
                    "Content-Type": "application/json",
                    # Groq sits behind Cloudflare, which can reject urllib's default agent
@@ -153,11 +158,15 @@ class LLMClient:
             if status == 200:
                 try:
                     self.tokens_used += int(payload.get("usage", {}).get("total_tokens", 0))
-                    return payload["choices"][0]["message"]["content"]
+                    return payload["choices"][0]["message"].get("content") or ""
                 except (KeyError, IndexError, TypeError) as e:
                     raise LLMUnavailable(f"unexpected response shape: {payload!r}") from e
             err = (payload.get("error") or {}).get("message", "") if isinstance(payload, dict) else ""
             last = f"HTTP {status} {err}".strip()
+            if status == 404 or "decommissioned" in err or "model_not_found" in str(payload):
+                raise LLMUnavailable(
+                    f"model '{c.model}' is not available ({last}). It may have been retired; "
+                    "run `python -m ostutor.cli models` and set OSTUTOR_MODEL in .env")
             if status in (401, 403):
                 raise LLMUnavailable(f"authentication failed ({last}); check your API key")
             if status == 400 and c.json_mode and "response_format" in err:
@@ -172,6 +181,24 @@ class LLMClient:
                     continue
             break
         raise LLMUnavailable(f"request failed: {last}")
+
+
+def list_models(config: LLMConfig, timeout: float = 20.0) -> list[str]:
+    """Ask the provider which model ids this key can use (GET {base_url}/models)."""
+    if not config.api_key:
+        raise LLMUnavailable("no API key (set OSTUTOR_API_KEY or GROQ_API_KEY)")
+    req = urllib.request.Request(
+        f"{config.base_url}/models",
+        headers={"Authorization": f"Bearer {config.api_key}",
+                 "User-Agent": "ostutor/0.2 (+https://github.com/itsmebirdie/ostutor)"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            data = json.loads(r.read().decode())
+    except urllib.error.HTTPError as e:
+        raise LLMUnavailable(f"HTTP {e.code} listing models") from e
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        raise LLMUnavailable(f"network error: {e}") from e
+    return sorted(m["id"] for m in data.get("data", []))
 
 
 def _retry_after(headers: dict) -> float | None:

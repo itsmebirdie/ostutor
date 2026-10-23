@@ -12,7 +12,9 @@ import json
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-LABELS = ("safe", "race", "deadlock", "starvation", "lost_signal")
+# "none_found" is an extension for Tier C: a sampled search that found nothing. It is
+# deliberately NOT "safe": sampling can never prove the absence of a failure.
+LABELS = ("safe", "race", "deadlock", "starvation", "lost_signal", "none_found")
 
 
 @dataclass

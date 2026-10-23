@@ -1,118 +1,94 @@
-# OS Tutor: review slice
+# OS Tutor: an LLM-orchestrated interleaving explorer for Operating Systems tutoring
 
-A deterministic explorer computes the verdict, the shortest witness and the critical
-decision point; narration (template or LLM) is then **mechanically checked** against what
-was computed. The LLM is optional: with no key the tutor falls back to templates.
-Still no runtime dependencies (the LLM client uses the standard library).
+BCSE303L project by Maanas Nair (24BCT0157) and Pawan Kumar (24BCT0153).
 
-## Setup (Python 3.11 or newer)
+**The engine computes. The LLM only explains. A checker verifies the explanation against
+what was computed.** LLMs invent concurrent behaviour; here every verdict, schedule and
+number comes from deterministic code, and any explanation (template or LLM) is checked
+mechanically before a student sees it. With no LLM at all the system still gives full,
+checked, template explanations.
+
+## What is built
+
+| Layer | What it does | Where |
+|---|---|---|
+| Front end | Restricted DSL: `mutex`, `semaphore`, `cond`, `shared`, `thread`, `lock/unlock`, `down/up`, `wait/signal/broadcast`, `read/write`, `repeat N`, `forever`; friendly line-numbered errors | `dsl/` |
+| Interleaving explorer | **Tier A** exhaustive state graph; **Tier B** symmetry reduction; **Tier C** PCT sampling (never reports "safe"). Detects deadlock, race, lost signal, starvation (under a stated fairness assumption). Shortest witness, critical decision point, independent replay. All verdicts carry a completeness label | `explorer/` (the original review slice is kept in `slice/` as a differential-test oracle) |
+| Exact simulators | CPU scheduling (FCFS, SJF, SRTF, Priority, RR, MLFQ), Banker's (safety + request), page replacement (FIFO, LRU, OPT), disk scheduling (FCFS, SSTF, SCAN, C-SCAN, LOOK, C-LOOK); validation before computation; tie-breaking as explicit parameters | `sims/` |
+| Mutants and diagnosis | 16 named misconceptions; exact match (all matches reported), edit-distance fall-back, optional unverified LLM hypothesis | `mutants/`, `diagnosis/` |
+| Narration | Template-first; LLM narration (Groq or any OpenAI-compatible API) validated by a mechanical checker, re-prompted twice, then template fall-back; SQLite cache; recorded fixtures | `narration/`, `cache/`, `slice/check.py` |
+| Hybrid RAG | Ingest (md/txt/pdf/pptx), chunking with overlap, dedupe, BM25 + dense with reciprocal rank fusion, citations, "not found" | `rag/` |
+| Router, API, UI | Rule-based router; FastAPI (`/analyze_code`, `/simulate`, `/diagnose`, `/ask`); Streamlit demo | `router/`, `api/`, `ui/` |
+| Evaluation | Scripts that produce every number for the report | `eval/` |
+
+**Not built / known limits** (see `docs/REPORT_UPDATE.md` for the full list): sleep sets and
+DPOR (Tier B is symmetry reduction only), shared *values* (so no reader-writer with counters,
+and races are lockset-style), real bge embeddings were not evaluated (an offline lexical
+embedder ships for tests), no real student data, no LLM latency/cost measurements.
+
+## Quick start
 
 ```bash
-cd os-tutor
-python -m venv .venv
-
-# activate the environment
-source .venv/bin/activate          # Linux / macOS
-.venv\Scripts\Activate.ps1         # Windows PowerShell
-.venv\Scripts\activate.bat         # Windows cmd
-
-pip install -e ".[dev]"            # installs the package and pytest
-pytest -q                          # expect: 38 passed, 1 skipped
+pip install -e ".[dev]"            # everything, including UI, API and RAG extras
+python -m ostutor.cli analyze data/programs/deadlock_two_locks.ost
+python -m ostutor.cli analyze data/programs/starvation_unfair_mutex.ost --fairness strong
+python -m ostutor.cli analyze data/programs/dining_5_deadlock.ost --tier B
+streamlit run streamlit_app.py     # the demo (see docs/DEMO.md)
+uvicorn ostutor.api.app:app        # the API
+python eval/run_all.py             # regenerate every evaluation result
+make check                         # exactly what CI runs: lint, types, tests (90% coverage floor)
 ```
 
-If you prefer not to install: `pip install pytest`, then `PYTHONPATH=src python -m ostutor.slice.demo ...`
-(on Windows PowerShell: `$env:PYTHONPATH="src"`). Pytest itself finds `src/` automatically.
+LLM access: `cp .env.example .env`, add your key, then `python -m ostutor.cli ping`.
+Model names change; `python -m ostutor.cli models` lists what your key can use
+(`docs/LLM_SETUP.md`). Pre-record demo narrations with `python -m ostutor.cli warm`
+(**re-run it after upgrading: recordings are keyed by the evidence text**).
 
-## Run the demo
+## The DSL
 
-```bash
-python -m ostutor.slice.demo deadlock_two_locks            # gate item 1
-python -m ostutor.slice.demo deadlock_two_locks --tamper   # gate item 4, checker rejects bad narrations
-python -m ostutor.slice.demo --all                         # gate item 2, all three labels
-python -m ostutor.slice.demo --scaling                     # 184,756 interleavings vs 121 states
-python -m ostutor.slice.demo --rr                          # optional S7, Round Robin mutant
 ```
+mutex m
+semaphore items = 0            # counting semaphore with an initial value
+cond ready
+shared buf
+thread Producer:
+    forever:                   # endless loop (top level of a thread only); `repeat 3:` unrolls
+        lock m
+        write buf
+        signal ready
+        unlock m
+        up items
+thread Consumer:
+    down items
+    lock m
+    wait ready, m              # releases m, waits on `ready`, re-acquires m (FIFO wake-up)
+    unlock m
+```
+
+Programs are plain data (`{"mutexes", "shared", "threads", ["semaphores"], ["conds"]}`), so
+the parser, tests and API all share one structure. A bug family is built into each verdict:
+`deadlock`, `lost_signal`, `race`, `starvation`, `safe`, or `none_found` (Tier C sampled, never
+"safe"). `verdict.detail["findings"]` lists every kind found, ordered by severity.
+
+## Tests, CI, releases
+
+`pytest` (offline; `tests/conftest.py` blocks the network and removes API keys), `ruff`, `mypy`.
+Highlights: differential tests of the general engine against the original explorer on 200 random
+programs; Tier B against Tier A on 150 random symmetric programs and rotated dining
+philosophers; golden tests from textbook examples for every simulator; mutation checks of the
+fairness and replay logic; real PDF/PPTX ingestion tests; Streamlit `AppTest` and FastAPI
+`TestClient` tests.
+
+GitHub Actions: `ci.yml` (lint+types, tests on Python 3.11 to 3.13 plus Windows and macOS,
+acceptance gate on the *installed* package including a live `uvicorn`, the evaluation scripts,
+build), `release.yml` (tag `vX.Y.Z` to a GitHub Release), `llm-live-check.yml` (manual, uses the
+`GROQ_API_KEY` secret).
 
 ## Layout
 
 ```
-src/ostutor/common/types.py   Step, Trace, Verdict (the data contracts)
-src/ostutor/slice/programs.py the three programs as Python data
-src/ostutor/slice/explorer.py Model, Tier A BFS, classification, witness, critical point
-src/ostutor/slice/replay.py   replay(program, witness)
-src/ostutor/slice/narrate.py  template narration
-src/ostutor/slice/check.py    narration checker + the four tampered examples
-src/ostutor/slice/rr.py       optional Round Robin + mutant + diagnosis
-src/ostutor/slice/demo.py     CLI
-tests/                        explorer, replay, checker, rr
+src/ostutor/  common/ dsl/ explorer/ slice/ sims/ mutants/ diagnosis/ narration/ cache/
+              rag/ router/ api/ ui/ cli.py
+data/programs/        12 example programs (.ost)       data/corpus_sample/  sample course notes
+eval/                 evaluation scripts + results/    docs/                setup, demo, report update
 ```
-
-## Hand-verified expectations (derived before running the code)
-
-| Program | Label | States | Notes |
-|---|---|---|---|
-| deadlock_two_locks | deadlock | 19 | witness `T1 lock a, T2 lock b`; critical decision after step 1: `T2:lock b` is the bad choice, `T1:lock b` keeps a safe completion |
-| race_no_lock | race on `x` | 9 | after `T1 read x`, T1's write and T2's read conflict; no schedule avoids it, so no critical point |
-| safe_with_lock | safe | 16 | 25 pc pairs minus the 9 with both threads inside the lock; one terminal state |
-| 2 threads x 10 reads | safe | 121 | 11 x 11 states versus 184,756 interleavings |
-| RR quantum 2, P1(0,5) P2(1,3) P3(2,1) | | | correct `P1 P1 P2 P2 P3 P1 P1 P2 P1`; mutant diverges at time unit 5 |
-
-## Conventions worth knowing for the review
-
-- State = (program counters, mutex owners). Shared values are not tracked.
-- Race = two threads' next operations hit the same variable, one is a write, and no common lock
-  is held. This is a lockset-style check on explored states.
-- `step_index` in `critical_point` is the 1-based number of the **bad step**;
-  `decision_after_step` is the state before it. `detail` on Verdict and the structured
-  `bad_thread` / `safe_thread` fields are small additions to the contract in the plan.
-- Narration convention: every thread, mutex and variable is written in backticks, and the
-  summary says ``Verdict: `label` ``. The checker depends on this.
-- The checker validates facts (indices, names, numbers, label), not causal reasoning.
-- Completeness is always `complete_for_bound` here; bounds are filled in to match the contract.
-
-## Not built (by design)
-
-DSL parser, Tier B/C, starvation and lost signal, LLM calls, RAG, API/UI, SQLite cache.
-
-
-## Added in v0.2 (Phase 1 and 3 pieces)
-
-```bash
-python -m ostutor.cli analyze data/programs/dining_3_deadlock.ost          # text program in, verdict out
-python -m ostutor.cli analyze prog.ost --llm --db cache.sqlite             # checked LLM narration + cache
-python -m ostutor.cli ping                                                  # test your API key
-```
-
-| Path | Role |
-|---|---|
-| `dsl/parser.py` | text DSL -> program dict, loop unrolling, line-numbered errors, canonical hash |
-| `narration/evidence.py` | compact evidence the LLM sees (about 1,000 tokens max) |
-| `narration/llm.py` | OpenAI-compatible client, retry, fixtures record/replay |
-| `narration/pipeline.py` | ask LLM, check, re-prompt twice, fall back to template |
-| `cache/store.py` | SQLite cache for verdicts and checked narrations |
-| `cli.py` | the command line above |
-| `data/programs/*.ost` | six example programs (3 original, dining philosophers x2, loop) |
-
-Setup for LLM access: see `docs/LLM_SETUP.md`.
-
-Still not built: semaphores/condition variables, Tier B/C, starvation, lost signal,
-simulators beyond the Round Robin slice, RAG, router, API, UI.
-
-## Tests, CI and releases
-
-```bash
-make install   # editable install with dev tools
-make check     # exactly what CI runs: ruff, mypy, pytest with a 90% coverage floor
-make demo      # slice demo with the tamper test
-```
-
-| Workflow | When | What it does |
-|---|---|---|
-| `ci.yml` | every push to `main`, every pull request | lint + types; tests on Python 3.11/3.12/3.13 (Linux) and 3.12 (Windows, macOS); acceptance gate on the *installed* package; builds the wheel and checks it |
-| `release.yml` | pushing a tag such as `v0.2.0` | re-runs tests, checks the tag matches `pyproject.toml`, builds, publishes a GitHub Release with the files (PyPI publishing is optional and off by default) |
-| `llm-live-check.yml` | manual only | pings the real provider with the `GROQ_API_KEY` repo secret |
-
-The test suite is fully offline: `tests/conftest.py` removes API keys from the environment and
-fails any test that opens a network connection, so CI never spends tokens.
-
-Release: bump `version` in `pyproject.toml`, commit, then `git tag v0.2.0 && git push origin v0.2.0`.
