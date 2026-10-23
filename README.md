@@ -36,6 +36,7 @@ python -m ostutor.cli analyze data/programs/dining_5_deadlock.ost --tier B
 streamlit run streamlit_app.py     # the demo (see docs/DEMO.md)
 uvicorn ostutor.api.app:app        # the API
 python eval/run_all.py             # regenerate every evaluation result
+python eval/run_rag_real.py --questions eval/my_questions.jsonl --embedder bge-small   # docs/RAG_EVAL.md
 make check                         # exactly what CI runs: lint, types, tests (90% coverage floor)
 ```
 

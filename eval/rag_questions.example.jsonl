@@ -1,0 +1,32 @@
+{"question": "how do i give execute permission to a script with chmod", "answerable": true, "source": "unix_basics.md", "page": 1, "chapter": "File permissions and chmod"}
+{"question": "what do the r w x bits mean on a directory", "answerable": true, "source": "unix_basics.md", "page": 1, "chapter": "File permissions and chmod"}
+{"question": "what does 755 mean in octal permissions", "answerable": true, "source": "unix_basics.md", "page": 1, "chapter": "File permissions and chmod"}
+{"question": "show a long listing of file permissions", "answerable": true, "source": "unix_basics.md", "page": 1, "chapter": "File permissions and chmod"}
+{"question": "how do I append output to a file instead of overwriting", "answerable": true, "source": "unix_basics.md", "page": 2, "chapter": "Pipes and redirection"}
+{"question": "count the entries in a directory using a pipe", "answerable": true, "source": "unix_basics.md", "page": 2, "chapter": "Pipes and redirection"}
+{"question": "how do I search for a pattern in a file with line numbers", "answerable": true, "source": "unix_basics.md", "page": 2, "chapter": "Pipes and redirection"}
+{"question": "redirect error output separately", "answerable": true, "source": "unix_basics.md", "page": 2, "chapter": "Pipes and redirection"}
+{"question": "what does fork return to the parent and child", "answerable": true, "source": "unix_basics.md", "page": 3, "chapter": "Processes: fork, exec and wait"}
+{"question": "what is a zombie process", "answerable": true, "source": "unix_basics.md", "page": 3, "chapter": "Processes: fork, exec and wait"}
+{"question": "how does a shell run a command", "answerable": true, "source": "unix_basics.md", "page": 3, "chapter": "Processes: fork, exec and wait"}
+{"question": "what signal does kill send by default", "answerable": true, "source": "unix_basics.md", "page": 3, "chapter": "Processes: fork, exec and wait"}
+{"question": "what is stored in an inode", "answerable": true, "source": "unix_basics.md", "page": 4, "chapter": "Files, inodes and paths"}
+{"question": "difference between hard link and symbolic link", "answerable": true, "source": "unix_basics.md", "page": 4, "chapter": "Files, inodes and paths"}
+{"question": "what is an absolute path versus a relative path", "answerable": true, "source": "unix_basics.md", "page": 4, "chapter": "Files, inodes and paths"}
+{"question": "what is a directory in unix", "answerable": true, "source": "unix_basics.md", "page": 4, "chapter": "Files, inodes and paths"}
+{"question": "what is a system call", "answerable": true, "source": "unix_basics.md", "page": 5, "chapter": "System calls"}
+{"question": "what happens when switching from user mode to kernel mode", "answerable": true, "source": "unix_basics.md", "page": 5, "chapter": "System calls"}
+{"question": "give examples of system calls like open and read", "answerable": true, "source": "unix_basics.md", "page": 5, "chapter": "System calls"}
+{"question": "how is printf related to write", "answerable": true, "source": "unix_basics.md", "page": 5, "chapter": "System calls"}
+{"question": "what is a page fault", "answerable": true, "source": "unix_basics.md", "page": 6, "chapter": "Virtual memory and paging"}
+{"question": "what does the TLB do", "answerable": true, "source": "unix_basics.md", "page": 6, "chapter": "Virtual memory and paging"}
+{"question": "what is a page table", "answerable": true, "source": "unix_basics.md", "page": 6, "chapter": "Virtual memory and paging"}
+{"question": "which policies choose the page to evict", "answerable": true, "source": "unix_basics.md", "page": 6, "chapter": "Virtual memory and paging"}
+{"question": "who won the football world cup", "answerable": false}
+{"question": "what is the capital of australia", "answerable": false}
+{"question": "best pizza recipe in naples", "answerable": false}
+{"question": "how tall is mount everest", "answerable": false}
+{"question": "write me a poem about autumn", "answerable": false}
+{"question": "xyzzy plugh", "answerable": false}
+{"question": "stock price of apple today", "answerable": false}
+{"question": "how do I train a neural network", "answerable": false}

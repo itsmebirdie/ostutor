@@ -59,17 +59,36 @@ class HashingEmbedder:
         return out
 
 
+BGE_QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
+
+
 class SentenceTransformerEmbedder:
-    def __init__(self, model: str = "BAAI/bge-small-en-v1.5"):
+    """Real dense embeddings, for example BAAI/bge-large-en-v1.5 (1024-d) or the smaller
+    BAAI/bge-small-en-v1.5 (384-d). For bge models, short QUERIES are embedded with the
+    recommended instruction prefix while passages are embedded as they are."""
+
+    def __init__(self, model: str = "BAAI/bge-small-en-v1.5", query_prefix: str | None = None,
+                 batch_size: int = 32):
         try:
             from sentence_transformers import SentenceTransformer
         except ImportError as e:
             raise RuntimeError("dense embeddings need `pip install sentence-transformers`") from e
         self.name = model
         self._m = SentenceTransformer(model)
+        self.batch_size = batch_size
+        self.query_prefix = (BGE_QUERY_PREFIX if "bge" in model.lower() else "") \
+            if query_prefix is None else query_prefix
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        return [list(map(float, v)) for v in self._m.encode(texts, normalize_embeddings=True)]
+        vecs = self._m.encode(texts, normalize_embeddings=True, batch_size=self.batch_size)
+        return [list(map(float, v)) for v in vecs]
+
+    def embed_query(self, text: str) -> list[float]:
+        return self.embed([self.query_prefix + text])[0]
+
+    def count_tokens(self, text: str) -> int:
+        """The model's own tokenizer, so the 512-token chunk limit is checked exactly."""
+        return len(self._m.tokenizer.encode(text, add_special_tokens=True))
 
 
 class BM25:
@@ -106,7 +125,8 @@ class Index:
         self.bm25 = BM25([tokens(c.text) for c in chunks])
 
     def dense_scores(self, query: str) -> list[float]:
-        q = self.embedder.embed([query])[0]
+        embed_query = getattr(self.embedder, "embed_query", None)
+        q = embed_query(query) if embed_query else self.embedder.embed([query])[0]
         return [sum(a * b for a, b in zip(q, v)) for v in self.vectors]
 
     def save(self, path: str | Path) -> None:

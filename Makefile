@@ -1,4 +1,4 @@
-.PHONY: install lint types test cov check demo eval api ui clean
+.PHONY: install lint types test cov check demo eval eval-rag api ui clean
 
 install:
 	python -m pip install -e ".[dev]"
@@ -23,6 +23,10 @@ demo:
 
 eval:
 	python eval/run_all.py
+
+# real bge evaluation on YOUR corpus and questions; see docs/RAG_EVAL.md
+eval-rag:
+	python eval/run_rag_real.py --corpus data/corpus_raw --questions eval/my_questions.jsonl --embedder bge-small
 
 api:
 	uvicorn ostutor.api.app:app --reload
